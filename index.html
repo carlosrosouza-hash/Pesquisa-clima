@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pesquisa de Clima</title>
+<meta name="theme-color" content="#1e3a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Clima">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#f3f6fa;--card:#fff;--ink:#16202c;--muted:#5f6b7a;--brand:#1e3a5f;--accent:#2f80ed;--line:#dbe3ec;
+--good:#1f9d62;--mid:#e0a100;--bad:#d64545;--r:16px}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1620;--card:#18222f;--ink:#e8eef5;--muted:#9aa8b8;--brand:#6aa7ff;--accent:#4a95ff;--line:#2a3747}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{background:#1e3a5f;color:#fff;padding:18px 16px 14px;padding-top:calc(18px + env(safe-area-inset-top))}
+header h1{margin:0;font-size:19px}
+header .sub{font-size:13px;opacity:.85;margin-top:2px}
+.bar{height:6px;background:rgba(255,255,255,.25);border-radius:3px;margin-top:12px;overflow:hidden}
+.bar i{display:block;height:100%;background:#7fe0b0;width:0;transition:width .3s}
+main{max-width:640px;margin:0 auto;padding:16px 16px 110px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+h2{font-size:18px;margin:0 0 4px;color:var(--brand)}
+.hint{color:var(--muted);font-size:14px;margin:0 0 12px}
+label.f{display:block;font-size:14px;color:var(--muted);margin:10px 0 4px}
+input[type=text],input[type=email],textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit;background:var(--bg);color:var(--ink)}
+textarea{min-height:96px;resize:vertical}
+.q{padding:14px 0;border-top:1px solid var(--line)}
+.q:first-of-type{border-top:0}
+.q p{margin:0 0 10px;font-weight:500}
+.scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.scale button{border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:12px 0;font-size:18px;font-weight:600;cursor:pointer}
+.scale button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.legend{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px}
+.legend.big{font-size:13px;display:block;line-height:1.7}
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;justify-content:center}
+.nav .in{display:flex;gap:10px;width:100%;max-width:640px}
+.btn{flex:1;border:0;border-radius:14px;padding:14px;font-size:16px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;text-align:center;text-decoration:none;display:block}
+.btn.sec{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.wa{background:#25d366}
+.btn:disabled{opacity:.45}
+.err{color:var(--bad);font-size:14px;margin-top:8px;display:none}
+.score{font-size:44px;font-weight:800;line-height:1}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;color:#fff}
+.row{display:flex;align-items:center;gap:10px;margin:12px 0}
+.row .nm{flex:0 0 42%;font-size:14px}
+.row .tr{flex:1;height:12px;background:var(--line);border-radius:6px;overflow:hidden}
+.row .tr i{display:block;height:100%;border-radius:6px}
+.row .v{width:34px;text-align:right;font-weight:700;font-size:14px}
+ul{padding-left:20px;margin:6px 0}
+li{margin:4px 0}
+.s-good{background:var(--good)}.s-mid{background:var(--mid)}.s-bad{background:var(--bad)}
+.open-a{background:var(--bg);border-radius:10px;padding:10px;margin:6px 0 12px;font-size:14px;white-space:pre-wrap}
+.small{font-size:12px;color:var(--muted)}
+.actions{display:grid;gap:10px;margin-top:10px}
+.install{display:none;background:#fff7e0;color:#5c4400;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pesquisa de Clima Organizacional</h1>
+  <div class="sub" id="sub">Respostas anônimas e confidenciais</div>
+  <div class="bar"><i id="prog"></i></div>
+</header>
+<main id="app"></main>
+<div class="nav"><div class="in" id="nav"></div></div>
+
+<script>
+const SCALE=["Discordo totalmente","Discordo","Neutro","Concordo","Concordo totalmente"];
+const SECTIONS=[
+ {id:"lid",nome:"Liderança",q:[
+  "Os líderes da empresa comunicam de forma clara as metas e objetivos.",
+  "Os gestores estão acessíveis quando preciso de apoio ou orientação.",
+  "Recebo feedback construtivo regularmente sobre meu desempenho.",
+  "Sinto que sou reconhecido pelos meus superiores quando faço um bom trabalho."],
+  forte:"Liderança presente, clara e que reconhece as pessoas.",
+  fraco:"Liderança com falhas de comunicação, acessibilidade, feedback ou reconhecimento.",
+  melhorias:["Realizar reuniões periódicas (mensais) de alinhamento de metas e resultados.","Treinar gestores em feedback construtivo e implantar conversas individuais regulares (1:1).","Criar um programa formal de reconhecimento (elogios públicos, premiações, destaque do mês).","Definir horários fixos de atendimento/abertura dos gestores às equipes."]},
+ {id:"cond",nome:"Condições de Trabalho",q:[
+  "As condições físicas do meu ambiente de trabalho (espaço, iluminação, conforto) são adequadas.",
+  "Tenho os recursos e ferramentas necessários para realizar meu trabalho com eficiência.",
+  "A empresa oferece um equilíbrio adequado entre trabalho e vida pessoal."],
+  forte:"Ambiente, recursos e equilíbrio entre vida pessoal e profissional adequados.",
+  fraco:"Estrutura, ferramentas ou equilíbrio trabalho/vida pessoal abaixo do esperado.",
+  melhorias:["Fazer um levantamento de ergonomia, iluminação e espaço e priorizar os ajustes de maior impacto.","Mapear com as equipes as ferramentas e sistemas que faltam ou estão obsoletos.","Avaliar horários flexíveis, banco de horas ou trabalho híbrido.","Monitorar sobrecarga de trabalho e horas extras."]},
+ {id:"com",nome:"Comunicação e Relacionamentos",q:[
+  "A comunicação entre os departamentos é eficiente e clara.",
+  "Existe uma boa cooperação entre as equipes de trabalho.",
+  "Sinto que minhas opiniões são ouvidas e respeitadas pelos colegas e superiores."],
+  forte:"Boa comunicação, cooperação entre equipes e escuta ativa.",
+  fraco:"Silos entre áreas, cooperação limitada ou pouca escuta das opiniões.",
+  melhorias:["Criar rituais de integração entre departamentos (reuniões cruzadas, projetos conjuntos).","Padronizar canais oficiais de comunicação interna e seus objetivos.","Implantar canal de sugestões e dar retorno visível sobre o que foi feito.","Promover ações de integração e confraternização entre equipes."]},
+ {id:"des",nome:"Desenvolvimento e Crescimento",q:[
+  "Sinto que tenho oportunidades de crescimento e desenvolvimento na empresa.",
+  "A empresa oferece treinamentos e programas de desenvolvimento adequados às minhas necessidades.",
+  "Sinto-me motivado a contribuir para o sucesso da empresa."],
+  forte:"Perspectiva de carreira, capacitação e motivação em bom nível.",
+  fraco:"Poucas perspectivas de crescimento, capacitação insuficiente ou baixa motivação.",
+  melhorias:["Estruturar plano de carreira e critérios claros de promoção.","Criar um plano anual de treinamento a partir do levantamento de necessidades de cada área.","Implantar PDI (Plano de Desenvolvimento Individual) com acompanhamento do gestor.","Oferecer mentoria, rodízio de funções e projetos desafiadores."]},
+ {id:"sat",nome:"Satisfação Geral",q:[
+  "Estou satisfeito com a minha função atual e com as responsabilidades atribuídas.",
+  "Considero a empresa um bom lugar para trabalhar.",
+  "Recomendo a empresa para amigos ou conhecidos como um bom local de trabalho."],
+  forte:"Colaboradores satisfeitos e dispostos a recomendar a empresa (bom employer branding).",
+  fraco:"Satisfação e engajamento baixos, com risco de rotatividade e de imagem como empregadora.",
+  melhorias:["Revisar a adequação de função, responsabilidades e remuneração/benefícios.","Realizar entrevistas de permanência com os colaboradores-chave.","Acompanhar eNPS e turnover periodicamente.","Comunicar as ações tomadas a partir desta pesquisa para recuperar a confiança."]}
+];
+const ABERTAS=[
+ "O que você mais valoriza no ambiente de trabalho da empresa?",
+ "O que você acredita que poderia ser melhorado no ambiente de trabalho da empresa?",
+ "Quais sugestões você daria para melhorar o clima organizacional?"];
+
+const KEY="clima_v1";
+let S={step:0,empresa:"",nome:"",ans:{},abertas:["","",""]};
+try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&x.ans)S=x}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const TOTAL=SECTIONS.length+3; // 0 intro, 1..5 seções, 6 abertas, 7 resultado
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=n=>n.toFixed(2).replace(".",",");
+const cls=m=>m>=4?"good":m>=3?"mid":"bad";
+const color=m=>({good:"var(--good)",mid:"var(--mid)",bad:"var(--bad)"})[cls(m)];
+const rotulo=m=>m>=4.5?"Excelente":m>=4?"Forte":m>=3.5?"Bom, com atenção":m>=3?"Atenção":m>=2?"Crítico":"Muito crítico";
+
+function calc(){
+  const secs=SECTIONS.map(s=>{
+    const v=s.q.map((_,i)=>S.ans[s.id+i]);
+    const m=v.reduce((a,b)=>a+b,0)/v.length;
+    return {...s,v,m};
+  });
+  const all=secs.flatMap(s=>s.v);
+  const geral=all.reduce((a,b)=>a+b,0)/all.length;
+  const itens=secs.flatMap(s=>s.q.map((t,i)=>({t,v:s.v[i],sec:s.nome})));
+  return {secs,geral,itens};
+}
+
+function analise(r){
+  const ord=[...r.secs].sort((a,b)=>b.m-a.m);
+  const fortes=ord.filter(s=>s.m>=4);
+  const fracos=[...ord].reverse().filter(s=>s.m<3.5);
+  const itensFortes=[...r.itens].sort((a,b)=>b.v-a.v).filter(i=>i.v>=4).slice(0,3);
+  const itensFracos=[...r.itens].sort((a,b)=>a.v-b.v).filter(i=>i.v<=3).slice(0,3);
+  let resumo;
+  const g=r.geral;
+  if(g>=4.2)resumo="O clima organizacional é muito positivo. A empresa tem uma base sólida de engajamento; o desafio é manter e consolidar as boas práticas.";
+  else if(g>=3.6)resumo="O clima é favorável, porém com pontos que merecem atenção para evitar queda de engajamento e transformar o bom clima em excelente.";
+  else if(g>=3)resumo="O clima é regular. Há aspectos importantes em risco que, se não tratados, podem afetar motivação, produtividade e retenção.";
+  else resumo="O clima está crítico. É recomendável um plano de ação imediato, com escuta das equipes e acompanhamento próximo da liderança.";
+  let prior=fracos.length?fracos:ord.slice(-2).reverse();
+  const oport=[];
+  prior.slice(0,3).forEach(s=>oport.push({sec:s.nome,m:s.m,acoes:s.melhorias.slice(0,s.m<3?4:3)}));
+  return {fortes,fracos,itensFortes,itensFracos,resumo,oport,ord};
+}
+
+function relatorioTexto(){
+  const r=calc(),a=analise(r);
+  const L=[];
+  L.push("📊 *PESQUISA DE CLIMA ORGANIZACIONAL*");
+  if(S.empresa)L.push("Empresa: "+S.empresa);
+  if(S.nome)L.push("Respondente: "+S.nome);
+  L.push("Data: "+new Date().toLocaleDateString("pt-BR"));
+  L.push("");
+  L.push("*NOTA GERAL: "+fmt(r.geral)+" / 5,00 – "+rotulo(r.geral)+"*");
+  L.push("");L.push("*Média por seção*");
+  r.secs.forEach(s=>L.push("• "+s.nome+": "+fmt(s.m)+" ("+rotulo(s.m)+")"));
+  L.push("");L.push("*Avaliação geral*");L.push(a.resumo);
+  L.push("");L.push("*✅ Pontos fortes*");
+  if(a.fortes.length)a.fortes.forEach(s=>L.push("• "+s.nome+" ("+fmt(s.m)+"): "+s.forte));
+  else L.push("• Nenhuma seção atingiu nota 4,0; o melhor resultado foi "+a.ord[0].nome+" ("+fmt(a.ord[0].m)+").");
+  a.itensFortes.forEach(i=>L.push("  – "+i.t+" ("+i.v+")"));
+  L.push("");L.push("*⚠️ Pontos fracos*");
+  if(a.fracos.length)a.fracos.forEach(s=>L.push("• "+s.nome+" ("+fmt(s.m)+"): "+s.fraco));
+  else L.push("• Nenhuma seção abaixo de 3,5.");
+  a.itensFracos.forEach(i=>L.push("  – "+i.t+" ("+i.v+")"));
+  L.push("");L.push("*💡 Oportunidades de melhoria*");
+  a.oport.forEach(o=>{L.push("» "+o.sec+":");o.acoes.forEach(x=>L.push("  – "+x))});
+  const ab=S.abertas.map((t,i)=>t.trim()?"▪ "+ABERTAS[i]+"\n  "+t.trim():"").filter(Boolean);
+  if(ab.length){L.push("");L.push("*💬 Respostas abertas*");L.push(ab.join("\n"))}
+  return L.join("\n");
+}
+
+/* ---------- Telas ---------- */
+function render(){
+  const app=$("#app"),nav=$("#nav");
+  $("#prog").style.width=Math.min(100,S.step/(TOTAL-1)*100)+"%";
+  window.scrollTo(0,0);
+  if(S.step===0)return intro(app,nav);
+  if(S.step<=SECTIONS.length)return secao(app,nav);
+  if(S.step===SECTIONS.length+1)return abertas(app,nav);
+  return resultado(app,nav);
+}
+function intro(app,nav){
+  $("#sub").textContent="Respostas anônimas e confidenciais";
+  app.innerHTML=`
+  <div class="install" id="inst"></div>
+  <div class="card"><h2>Bem-vindo(a)!</h2>
+  <p class="hint">Esta pesquisa avalia o clima organizacional da empresa em que você trabalha. Responda com sinceridade usando a escala abaixo. Ao final você verá a média de cada seção, uma avaliação geral e poderá enviar o resultado por e-mail ou WhatsApp.</p>
+  <div class="legend big"><b>1</b> – Discordo totalmente<br><b>2</b> – Discordo<br><b>3</b> – Neutro<br><b>4</b> – Concordo<br><b>5</b> – Concordo totalmente</div></div>
+  <div class="card"><label class="f" for="emp">Empresa avaliada</label>
+  <input type="text" id="emp" placeholder="Nome da empresa" value="${esc(S.empresa)}">
+  <label class="f" for="nm">Seu nome (opcional)</label>
+  <input type="text" id="nm" placeholder="Opcional" value="${esc(S.nome)}"></div>`;
+  nav.innerHTML=`<button class="btn" id="go">Começar</button>`;
+  $("#emp").oninput=e=>{S.empresa=e.target.value;save()};
+  $("#nm").oninput=e=>{S.nome=e.target.value;save()};
+  $("#go").onclick=()=>{S.step=1;save();render()};
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+  if(!standalone){const i=$("#inst");i.style.display="block";
+    i.innerHTML=ios?"📱 Para instalar no iPhone: toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>.":"📱 Para instalar: abra o menu do navegador e toque em <b>Instalar app</b> / <b>Adicionar à tela inicial</b>."}
+}
+function secao(app,nav){
+  const s=SECTIONS[S.step-1];
+  $("#sub").textContent=`Seção ${S.step} de ${SECTIONS.length} · ${s.nome}`;
+  app.innerHTML=`<div class="card"><h2>${esc(s.nome)}</h2><p class="hint">1 = Discordo totalmente · 5 = Concordo totalmente</p>
+  ${s.q.map((t,i)=>`<div class="q"><p>${esc(t)}</p><div class="scale" data-k="${s.id+i}">
+  ${[1,2,3,4,5].map(n=>`<button type="button" data-n="${n}" aria-label="${n} - ${SCALE[n-1]}" class="${S.ans[s.id+i]===n?"on":""}">${n}</button>`).join("")}</div>
+  <div class="legend"><span>Discordo totalmente</span><span>Concordo totalmente</span></div></div>`).join("")}
+  <div class="err" id="err">Responda todas as questões para continuar.</div></div>`;
+  app.querySelectorAll(".scale").forEach(sc=>sc.onclick=e=>{
+    const b=e.target.closest("button");if(!b)return;
+    S.ans[sc.dataset.k]=+b.dataset.n;save();
+    sc.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+    $("#err").style.display="none";
+  });
+  nav.innerHTML=`<button class="btn sec" id="bk">Voltar</button><button class="btn" id="nx">${S.step===SECTIONS.length?"Continuar":"Próxima"}</button>`;
+  $("#bk").onclick=()=>{S.step--;save();render()};
+  $("#nx").onclick=()=>{
+    const falta=s.q.findIndex((_,i)=>!S.ans[s.id+i]);
+    if(falta>=0){$("#err").style.display="block";const el=app.querySelectorAll(".q")[falta];el.scrollIntoView({behavior:"smooth",block:"center"});return}
+    S.step++;save();render()};
+}
+function abertas(app,nav){
+  $("#sub").textContent="Perguntas abertas (opcionais)";
+  app.innerHTML=`<div class="card"><h2>Perguntas abertas</h2><p class="hint">Opcional. Suas respostas serão incluídas no relatório.</p>
+  ${ABERTAS.map((q,i)=>`<label class="f" for="ab${i}" style="color:var(--ink);font-weight:500">${esc(q)}</label><textarea id="ab${i}">${esc(S.abertas[i])}</textarea>`).join("")}</div>`;
+  ABERTAS.forEach((_,i)=>$("#ab"+i).oninput=e=>{S.abertas[i]=e.target.value;save()});
+  nav.innerHTML=`<button class="btn sec" id="bk">Voltar</button><button class="btn" id="nx">Ver resultado</button>`;
+  $("#bk").onclick=()=>{S.step--;save();render()};
+  $("#nx").onclick=()=>{S.step++;save();render()};
+}
+function resultado(app,nav){
+  const r=calc(),a=analise(r);
+  $("#sub").textContent=S.empresa?`Resultado · ${S.empresa}`:"Resultado";
+  const li=arr=>arr.length?`<ul>${arr.map(x=>`<li>${x}</li>`).join("")}</ul>`:"";
+  app.innerHTML=`
+  <div class="card" style="text-align:center">
+    <div class="small">NOTA GERAL DO CLIMA</div>
+    <div class="score" style="color:${color(r.geral)}">${fmt(r.geral)}<span style="font-size:18px;color:var(--muted)"> / 5</span></div>
+    <div style="margin-top:8px"><span class="pill s-${cls(r.geral)}">${rotulo(r.geral)}</span></div>
+  </div>
+  <div class="card"><h2>Média por seção</h2>
+    ${r.secs.map(s=>`<div class="row"><div class="nm">${esc(s.nome)}</div><div class="tr"><i class="s-${cls(s.m)}" style="width:${s.m/5*100}%"></i></div><div class="v">${fmt(s.m)}</div></div>`).join("")}
+    <p class="small">Verde ≥ 4,0 · Amarelo 3,0–3,99 · Vermelho &lt; 3,0</p></div>
+  <div class="card"><h2>Avaliação geral</h2><p style="margin:6px 0 0">${esc(a.resumo)}</p></div>
+  <div class="card"><h2>✅ Pontos fortes</h2>
+    ${a.fortes.length?li(a.fortes.map(s=>`<b>${esc(s.nome)}</b> (${fmt(s.m)}): ${esc(s.forte)}`)):`<p>Nenhuma seção atingiu 4,0. O melhor resultado foi <b>${esc(a.ord[0].nome)}</b> (${fmt(a.ord[0].m)}).</p>`}
+    ${a.itensFortes.length?`<p class="small" style="margin-top:10px">Afirmações mais bem avaliadas:</p>${li(a.itensFortes.map(i=>`${esc(i.t)} <b>(${i.v})</b>`))}`:""}</div>
+  <div class="card"><h2>⚠️ Pontos fracos</h2>
+    ${a.fracos.length?li(a.fracos.map(s=>`<b>${esc(s.nome)}</b> (${fmt(s.m)}): ${esc(s.fraco)}`)):`<p>Nenhuma seção abaixo de 3,5.</p>`}
+    ${a.itensFracos.length?`<p class="small" style="margin-top:10px">Afirmações com menor avaliação:</p>${li(a.itensFracos.map(i=>`${esc(i.t)} <b>(${i.v})</b>`))}`:""}</div>
+  <div class="card"><h2>💡 Oportunidades de melhoria</h2>
+    ${a.oport.map(o=>`<p style="margin:12px 0 0"><b>${esc(o.sec)}</b> <span class="small">(${fmt(o.m)})</span></p>${li(o.acoes.map(esc))}`).join("")}</div>
+  ${S.abertas.some(t=>t.trim())?`<div class="card"><h2>💬 Respostas abertas</h2>${S.abertas.map((t,i)=>t.trim()?`<div class="small">${esc(ABERTAS[i])}</div><div class="open-a">${esc(t.trim())}</div>`:"").join("")}</div>`:""}
+  <div class="card"><h2>Enviar resultado</h2>
+    <label class="f" for="mail">E-mail de destino</label>
+    <input type="email" id="mail" inputmode="email" autocomplete="email" placeholder="seuemail@exemplo.com" value="${esc(S.mail||"")}">
+    <div class="actions">
+      <button class="btn" id="bMail">✉️ Enviar por e-mail</button>
+      <button class="btn wa" id="bWa">💬 Compartilhar no WhatsApp</button>
+      <button class="btn sec" id="bCopy">📋 Copiar relatório</button>
+    </div><div class="small" id="msg" style="margin-top:8px"></div></div>`;
+  nav.innerHTML=`<button class="btn sec" id="bk">Revisar respostas</button><button class="btn sec" id="nw">Nova pesquisa</button>`;
+  $("#bk").onclick=()=>{S.step=1;save();render()};
+  $("#nw").onclick=()=>{if(confirm("Apagar as respostas e iniciar uma nova pesquisa?")){S={step:0,empresa:"",nome:"",ans:{},abertas:["","",""]};save();render()}};
+  const msg=t=>$("#msg").textContent=t;
+  $("#mail").oninput=e=>{S.mail=e.target.value;save()};
+  $("#bMail").onclick=()=>{
+    const to=$("#mail").value.trim();
+    if(to&&!/^\S+@\S+\.\S+$/.test(to)){msg("E-mail inválido.");return}
+    const subj="Resultado da Pesquisa de Clima"+(S.empresa?" - "+S.empresa:"");
+    const body=relatorioTexto().replace(/\*/g,"");
+    location.href="mailto:"+encodeURIComponent(to)+"?subject="+encodeURIComponent(subj)+"&body="+encodeURIComponent(body);
+    msg("Abrindo seu aplicativo de e-mail…");
+  };
+  $("#bWa").onclick=()=>{
+    window.open("https://wa.me/?text="+encodeURIComponent(relatorioTexto()),"_blank");
+  };
+  $("#bCopy").onclick=async()=>{
+    try{await navigator.clipboard.writeText(relatorioTexto());msg("Relatório copiado.")}
+    catch(e){const t=document.createElement("textarea");t.value=relatorioTexto();document.body.appendChild(t);t.select();try{document.execCommand("copy");msg("Relatório copiado.")}catch(_){msg("Não foi possível copiar.")}t.remove()}
+  };
+}
+render();
+if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
